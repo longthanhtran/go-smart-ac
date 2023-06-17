@@ -23,8 +23,8 @@ func initDb() {
 	}
 
 	fmt.Println("Connected to database")
-	err = database.DBConn.AutoMigrate(&api.Ac{})
-	err = database.DBConn.AutoMigrate(&api.Status{})
+	err = database.DBConn.AutoMigrate(&database.Ac{})
+	err = database.DBConn.AutoMigrate(&database.Status{})
 	if err != nil {
 		return
 	}
@@ -55,7 +55,8 @@ func main() {
 	initDb()
 
 	app.Post("/api/acs", api.Create)
-	app.Post("/api/acs/:ac_id/status", api.StatusUpdate)
+	app.Get("/api/acs/:serial", api.Show)
+	app.Post("/api/acs/:serial/status", api.StatusUpdate)
 
 	err := app.Listen(":3000")
 	if err != nil {
