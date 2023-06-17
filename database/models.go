@@ -13,7 +13,7 @@ type Ac struct {
 	FirmwareVersion string    `json:"firmware_version"`
 }
 
-func (ac *Ac) AcToRespondAc() app.Ac {
+func (ac *Ac) ToJson() app.Ac {
 	return app.Ac{
 		Serial:          ac.Serial,
 		RegisterDate:    ac.RegisterDate,
@@ -31,7 +31,7 @@ type Status struct {
 	HealthStatus string `json:"health_status" gorm:"size:150" validate:"max=150"`
 }
 
-func (status *Status) StatusToAcStatus() app.Status {
+func (status *Status) ToJson() app.Status {
 	return app.Status{
 		AcSerial:     status.AcSerial,
 		Temperature:  status.Temperature,

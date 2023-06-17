@@ -23,7 +23,7 @@ func Show(c *fiber.Ctx) error {
 	acSerial := c.Params("serial")
 	var ac database.Ac
 	db.First(&ac, "serial = ?", acSerial)
-	return c.JSON(ac.AcToRespondAc())
+	return c.JSON(ac.ToJson())
 }
 
 func StatusUpdate(c *fiber.Ctx) error {
@@ -43,5 +43,5 @@ func StatusUpdate(c *fiber.Ctx) error {
 		return c.Status(400).JSON(err.Error())
 	}
 	db.Create(&acStatus)
-	return c.JSON(acStatus.StatusToAcStatus())
+	return c.JSON(acStatus.ToJson())
 }
