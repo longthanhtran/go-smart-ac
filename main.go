@@ -24,6 +24,7 @@ func initDb() {
 
 	fmt.Println("Connected to database")
 	err = database.DBConn.AutoMigrate(&api.Ac{})
+	err = database.DBConn.AutoMigrate(&api.Status{})
 	if err != nil {
 		return
 	}
@@ -43,6 +44,7 @@ func validateAPIKey(_ *fiber.Ctx, key string) (bool, error) {
 	}
 	return false, keyauth.ErrMissingOrMalformedAPIKey
 }
+
 func main() {
 	app := fiber.New()
 	app.Use(cors.New())
@@ -53,6 +55,7 @@ func main() {
 	initDb()
 
 	app.Post("/api/acs", api.Create)
+	app.Post("/api/acs/:ac_id/status", api.StatusUpdate)
 
 	err := app.Listen(":3000")
 	if err != nil {
