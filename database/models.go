@@ -28,7 +28,7 @@ type Status struct {
 	Temperature  uint8  `json:"temperature"`
 	Humidity     uint8  `json:"humidity"`
 	CoLevel      uint16 `json:"co_level"`
-	HealthStatus string `json:"health_status" gorm:"size:150"`
+	HealthStatus string `json:"health_status" gorm:"size:150" validate:"max=150"`
 }
 
 func (status *Status) StatusToAcStatus() app.Status {

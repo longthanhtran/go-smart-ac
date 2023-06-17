@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/longthanhtran/go-smart-ac/database"
 	"gorm.io/gorm"
@@ -27,6 +28,7 @@ func Show(c *fiber.Ctx) error {
 
 func StatusUpdate(c *fiber.Ctx) error {
 	db := database.DBConn
+	var validate = validator.New()
 	acSerial := c.Params("serial")
 	var ac database.Ac
 	foundAc := db.First(&ac, "serial = ?", acSerial)
@@ -36,6 +38,9 @@ func StatusUpdate(c *fiber.Ctx) error {
 	acStatus := new(database.Status)
 	if err := c.BodyParser(acStatus); err != nil {
 		return c.Status(503).SendString(err.Error())
+	}
+	if err := validate.Struct(acStatus); err != nil {
+		return c.Status(400).JSON(err.Error())
 	}
 	db.Create(&acStatus)
 	return c.JSON(acStatus.StatusToAcStatus())
