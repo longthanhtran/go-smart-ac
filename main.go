@@ -54,9 +54,11 @@ func main() {
 
 	initDb()
 
-	app.Post("/api/acs", api.Create)
-	app.Get("/api/acs/:serial", api.Show)
-	app.Post("/api/acs/:serial/status", api.StatusUpdate)
+	acApi := app.Group("/api/acs")
+	acApi.Post("/", api.Create)
+	acApi.Get("/:serial", api.Show)
+	acApi.Post("/:serial/status", api.StatusUpdate)
+	acApi.Post("/:serial/status/bulk", api.BulkUpdate)
 
 	err := app.Listen(":3000")
 	if err != nil {
