@@ -1,15 +1,15 @@
 package main
 
 import (
-	"crypto/sha256"
-	"crypto/subtle"
+	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/keyauth"
 	"github.com/longthanhtran/go-smart-ac/api"
 	"github.com/longthanhtran/go-smart-ac/database"
-	"os"
+	"regexp"
+	"strings"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -32,23 +32,37 @@ func initDb() {
 }
 
 var (
-	apiKey = os.Getenv("X-API-KEY")
+	protectedUrls = []*regexp.Regexp{
+		regexp.MustCompile("/api/acs/[a-z0-9]*"),
+	}
 )
 
 func validateAPIKey(_ *fiber.Ctx, key string) (bool, error) {
-	hashedAPIKey := sha256.Sum256([]byte(apiKey))
-	hashedKey := sha256.Sum256([]byte(key))
-
-	if subtle.ConstantTimeCompare(hashedAPIKey[:], hashedKey[:]) == 1 {
-		return true, nil
+	db := database.DBConn
+	var ac database.Ac
+	result := db.First(&ac, "token = ?", key)
+	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return false, keyauth.ErrMissingOrMalformedAPIKey
 	}
-	return false, keyauth.ErrMissingOrMalformedAPIKey
+	return true, nil
+}
+
+func authFilter(c *fiber.Ctx) bool {
+	originalURL := strings.ToLower(c.OriginalURL())
+
+	for _, pattern := range protectedUrls {
+		if pattern.MatchString(originalURL) {
+			return false
+		}
+	}
+	return true
 }
 
 func main() {
 	app := fiber.New()
 	app.Use(cors.New())
 	app.Use(keyauth.New(keyauth.Config{
+		Next:      authFilter,
 		Validator: validateAPIKey,
 	}))
 
@@ -56,9 +70,9 @@ func main() {
 
 	acApi := app.Group("/api/acs")
 	acApi.Post("/", api.Create)
-	acApi.Get("/:serial", api.Show)
-	acApi.Post("/:serial/status", api.StatusUpdate)
-	acApi.Post("/:serial/status/bulk", api.BulkUpdate)
+	acApi.Get("/", api.Show)
+	acApi.Post("/status", api.StatusUpdate)
+	acApi.Post("/status/bulk", api.BulkUpdate)
 
 	err := app.Listen(":3000")
 	if err != nil {

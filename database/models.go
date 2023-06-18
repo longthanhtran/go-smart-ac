@@ -11,6 +11,7 @@ type Ac struct {
 	Serial          string    `json:"serial" gorm:"uniqueIndex"`
 	RegisterDate    time.Time `json:"register_date"`
 	FirmwareVersion string    `json:"firmware_version"`
+	Token           string    `json:"token" gorm:"<-:create; index"`
 }
 
 func (ac *Ac) ToJson() app.Ac {
@@ -18,6 +19,7 @@ func (ac *Ac) ToJson() app.Ac {
 		Serial:          ac.Serial,
 		RegisterDate:    ac.RegisterDate,
 		FirmwareVersion: ac.FirmwareVersion,
+		Token:           ac.Token,
 	}
 }
 

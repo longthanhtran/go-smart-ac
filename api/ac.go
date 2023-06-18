@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/longthanhtran/go-smart-ac/database"
 	"gorm.io/gorm"
+	"strings"
 )
 
 func Create(c *fiber.Ctx) error {
@@ -16,53 +19,49 @@ func Create(c *fiber.Ctx) error {
 	if err := c.BodyParser(ac); err != nil {
 		return c.Status(503).SendString(err.Error())
 	}
+	ac.Token = createToken()
 	db.Create(&ac)
 	return c.JSON(ac.ToJson())
 }
 
 func Show(c *fiber.Ctx) error {
 	db := database.DBConn
-	acSerial := c.Params("serial")
+	_, serial := acData(c, db)
 	var ac database.Ac
-	db.First(&ac, "serial = ?", acSerial)
+	db.First(&ac, "serial = ?", serial)
 	return c.JSON(ac.ToJson())
 }
 
 func StatusUpdate(c *fiber.Ctx) error {
 	db := database.DBConn
-	valid, serial := validateAcSerialParam(c, db)
-	if !valid {
-		return c.Status(404).SendString("invalid ac serial")
-	}
+
 	acStatus := new(database.Status)
 	if err := c.BodyParser(acStatus); err != nil {
 		return c.Status(503).SendString(err.Error())
 	}
-	if acStatus.AcSerial != serial || !validateStatus(*acStatus) {
+	valid, acSerial := acData(c, db)
+	if acSerial != acStatus.AcSerial || !valid {
+		return c.Status(401).SendString("unauthorized")
+	}
+	if !validateStatus(*acStatus) {
 		return c.Status(400).SendString("invalid ac status")
 	}
 	db.Create(&acStatus)
 	return c.JSON(acStatus.ToJson())
 }
 
-func validateAcSerialParam(c *fiber.Ctx, db *gorm.DB) (bool, string) {
-	acSerial := c.Params("serial")
+func acData(c *fiber.Ctx, db *gorm.DB) (bool, string) {
+	token := strings.Split(c.GetReqHeaders()["Authorization"], " ")[1]
 	var ac database.Ac
-	foundAc := db.First(&ac, "serial = ?", acSerial)
-	if foundAc.Error != nil && errors.Is(foundAc.Error, gorm.ErrRecordNotFound) {
+	result := db.First(&ac, "token = ?", token)
+	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return false, ""
 	}
-	return true, acSerial
+	return true, ac.Serial
 }
 
 func BulkUpdate(c *fiber.Ctx) error {
 	db := database.DBConn
-	serial := c.Params("serial")
-	var ac database.Ac
-	foundAc := db.First(&ac, "serial = ?", serial)
-	if foundAc.Error != nil && errors.Is(foundAc.Error, gorm.ErrRecordNotFound) {
-		return c.Status(404).SendString("invalid ac serial")
-	}
 
 	// unmarshal []status from c.Body()
 	var statuses []database.Status
@@ -74,6 +73,7 @@ func BulkUpdate(c *fiber.Ctx) error {
 	if len(statuses) > 500 {
 		return c.Status(400).SendString("more than 500 statuses sent")
 	}
+	_, serial := acData(c, db)
 	for _, status := range statuses {
 		if status.AcSerial != serial || !createStatus(status, db) {
 			fmt.Printf("invalid ac status of %s\n", status.AcSerial)
@@ -97,4 +97,12 @@ func validateStatus(status database.Status) bool {
 		return false
 	}
 	return true
+}
+
+func createToken() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
 }
